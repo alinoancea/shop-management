@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Configurare game{% endblock %}
+
+{% block head %}
+<style>
+    /* columns take only the room their content needs, left-aligned; the empty last column soaks up the rest */
+    .gama-table .fill { width: 100%; }
+    .gama-table td:nth-child(2) { min-width: 14rem; }
+    .gama-table td:nth-child(3) { min-width: 11rem; }
+
+    .results { max-height: 190px; margin-top: .5rem; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+    .results:empty { display: none; }
+
+    /* one grid for the search results, the column header and the product rows */
+    .result, .list-head, .product-list li {
+        display: grid;
+        grid-template-columns: 9rem minmax(0, 1fr) 4.5rem 4rem 2rem;
+        align-items: center;
+        gap: .75rem;
+        padding: .45rem .75rem;
+    }
+    .result { width: 100%; border: 0; border-top: 1px solid var(--border); background: var(--surface); color: var(--text); text-align: left; }
+    .result:first-child { border-top: 0; }
+    .result:hover:not(:disabled) { background: var(--hover); }
+    .result:disabled { color: var(--text-faint); }
+    .result i { justify-self: end; }
+
+    .list-head { margin-top: .75rem; padding-bottom: 0; color: var(--text-faint); font-size: .78rem; font-weight: 600; }
+    .product-list { max-height: 320px; margin: .25rem 0 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--border); border-radius: 8px; }
+    .product-list li { border-top: 1px solid var(--border); }
+    .product-list li:first-child { border-top: 0; }
+    .product-list li.zero { background: rgba(220, 38, 38, .08); }  /* stock 0: pale red row */
+    .product-list li.empty { display: block; }
+    .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qty { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-head d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+        <h1>Configurare game</h1>
+        <p id="gamaCount">—</p>
+    </div>
+    <button type="button" class="btn btn-sm btn-accent" id="newBtn">
+        <i class="bi bi-plus-lg me-1"></i> Gamă nouă
+    </button>
+</header>
+
+<div class="panel table-wrap">
+    <table class="table data-table gama-table">
+        <thead>
+            <tr>
+                <th>Acțiuni</th>
+                <th>Titlu</th>
+                <th>Gamă din gestiune</th>
+                <th>Produse</th>
+                <th class="fill"></th>
+            </tr>
+        </thead>
+        <tbody id="gamaBody">
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <i class="bi bi-tags"></i>
+                    <p class="mb-0">Se încarcă…</p>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="gamaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="gamaModalTitle">Gamă nouă</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Închide"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="gamaTitle">Titlu</label>
+                    <input class="form-control" id="gamaTitle" placeholder="Ex. Oferte săptămâna asta" autocomplete="off">
+                </div>
+                <div>
+                    <label class="form-label" for="gamaDbf">Gamă din gestiune (opțional)</label>
+                    <select class="form-select" id="gamaDbf"></select>
+                    <div class="form-text">Gama conține toate produsele gamei din gestiune, plus cele adăugate cu butonul „Adaugă produse".</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Anulează</button>
+                <button type="button" class="btn btn-sm btn-accent" id="saveBtn">Salvează</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="productsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="productsModalTitle">Produse</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Închide"></button>
+            </div>
+            <div class="modal-body">
+                <input type="search" class="form-control form-control-sm" id="productSearch" placeholder="Adaugă un produs: caută după nume sau cod de bare…" autocomplete="off">
+                <div class="results" id="searchResults"></div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                    <span class="muted small" id="productCount"></span>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="showZero">
+                        <label class="form-check-label small" for="showZero">Arată și produsele cu stoc 0</label>
+                    </div>
+                </div>
+                <div class="muted small" id="dbfNote"></div>
+                <div class="list-head"><span>Cod de bare</span><span>Nume</span><span class="qty">Preț</span><span class="qty">Stoc</span><span></span></div>
+                <ul class="product-list" id="productList"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-accent" data-bs-dismiss="modal">Închide</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const $ = id => document.getElementById(id);
+    const gamaModal = new bootstrap.Modal($('gamaModal'));
+    const productsModal = new bootstrap.Modal($('productsModal'));
+    const gamaUrl = id => `/api/custom-gamas/${encodeURIComponent(id)}`;
+    const send = (url, method, body) => fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+    let gamas = [];       // app-defined gamas
+    let editing = null;   // identifier of the gama in the edit dialog (null when creating)
+    let pm = null;        // products dialog: {identifier, products: [added by hand], dbfGama}
+    let found = [];       // last search results
+    let searchTimer;
+
+    function renderTable() {
+        $('gamaCount').textContent = `${gamas.length} ${gamas.length === 1 ? 'gamă' : 'game'}`;
+        $('gamaBody').innerHTML = gamas.length ? gamas.map(g => `
+            <tr>
+                <td class="text-nowrap">
+                    <button type="button" class="btn-icon" data-products="${escapeHtml(g.identifier)}"><i class="bi bi-plus-lg me-1"></i>Adaugă produse</button>
+                    <button type="button" class="btn-icon" data-edit="${escapeHtml(g.identifier)}" title="Configurează" aria-label="Configurează"><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn-icon danger" data-delete="${escapeHtml(g.identifier)}" title="Șterge" aria-label="Șterge"><i class="bi bi-trash"></i></button>
+                </td>
+                <td>${escapeHtml(g.title)}</td>
+                <td>${g.dbf_gama ? escapeHtml(g.dbf_gama) : '<span class="muted">—</span>'}</td>
+                <td class="num">${g.count}</td>
+                <td class="fill"></td>
+            </tr>`).join('') : `
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <i class="bi bi-tags"></i>
+                    <p class="mb-0">Nicio gamă definită. Apasă „Gamă nouă" ca să creezi una.</p>
+                </td>
+            </tr>`;
+    }
+
+    async function load() {
+        gamas = await (await fetch('/api/custom-gamas')).json();
+        renderTable();
+    }
+
+    // ---- create / edit: title and linked DBF gama ----
+    async function openEdit(identifier) {   // identifier === null: a new gama
+        const [dbf, g] = await Promise.all([
+            fetch('/api/dbf-gamas').then(r => r.json()),
+            identifier ? fetch(gamaUrl(identifier)).then(r => r.json()) : null,
+        ]);
+        editing = identifier;
+        $('gamaModalTitle').textContent = g ? 'Configurare gamă' : 'Gamă nouă';
+        $('gamaTitle').value = g ? g.title : '';
+        const option = (value, text) => `<option value="${escapeHtml(value)}">${escapeHtml(text)}</option>`;
+        $('gamaDbf').innerHTML = option('', 'Fără')
+            + dbf.map(d => option(d.gama, `${d.gama} (${d.count} produse)`)).join('')
+            // a linked gama that disappeared from the DBF stays visible instead of being dropped silently
+            + (g?.dbf_gama && !dbf.some(d => d.gama === g.dbf_gama) ? option(g.dbf_gama, `${g.dbf_gama} (0 produse)`) : '');
+        $('gamaDbf').value = g?.dbf_gama ?? '';
+        gamaModal.show();
+    }
+
+    $('newBtn').addEventListener('click', () => openEdit(null));
+
+    $('saveBtn').addEventListener('click', async () => {
+        const isNew = editing === null;
+        try {
+            const res = await send(isNew ? '/api/custom-gamas' : gamaUrl(editing), isNew ? 'POST' : 'PUT',
+                { title: $('gamaTitle').value, dbf_gama: $('gamaDbf').value });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            gamaModal.hide();
+            showToast(isNew ? 'Gamă creată' : 'Gamă salvată');
+            await load();
+        } catch (e) {
+            showToast(e.message || 'Salvarea a eșuat', 'danger');
+        }
+    });
+
+    // ---- products added by hand: viewed, added and removed in their own dialog ----
+    const money = v => v == null ? '' : Number(v).toFixed(2);
+
+    function renderProducts() {
+        // products with stock exactly 0 are hidden unless the checkbox is ticked
+        const shown = pm.products.filter(p => $('showZero').checked || p.quantity !== 0);
+        const hidden = pm.products.length - shown.length;
+        const n = shown.length;
+        // the label always counts every product added by hand, hidden ones included
+        const total = pm.products.length;
+        $('productCount').textContent = `${total} ${total === 1 ? 'produs adăugat' : 'produse adăugate'} manual`
+            + (hidden ? ` · ${hidden} cu stoc 0 ascunse` : '');
+        $('dbfNote').textContent = pm.dbfGama ? `Gama include și produsele gamei „${pm.dbfGama}" din gestiune, care nu sunt afișate aici.` : '';
+        $('productList').innerHTML = n ? shown.map(p => `
+            <li${p.quantity === 0 ? ' class="zero"' : ''}>
+                <span class="mono">${escapeHtml(p.barcode)}</span>
+                <span class="name">${escapeHtml(p.name)}</span>
+                <span class="qty">${money(p.price)}</span>
+                <span class="qty">${escapeHtml(p.quantity ?? '')}</span>
+                <button type="button" class="btn-icon danger" data-remove="${escapeHtml(p.barcode)}" title="Scoate" aria-label="Scoate"><i class="bi bi-x-lg"></i></button>
+            </li>`).join('') : `<li class="empty muted small">${hidden ? 'Toate produsele adăugate au stoc 0 și sunt ascunse.' : 'Niciun produs adăugat manual.'}</li>`;
+    }
+
+    function renderResults() {
+        $('searchResults').innerHTML = found.map((p, i) => {
+            const added = pm.products.some(x => x.barcode === p.barcode);
+            const d = p.data || {};
+            return `<button type="button" class="result" data-add="${i}"${added ? ' disabled' : ''}>
+                <span class="mono">${escapeHtml(p.barcode)}</span>
+                <span class="name">${escapeHtml(p.name)}</span>
+                <span class="qty">${money(d.price)}</span>
+                <span class="qty">${escapeHtml(d.quantity ?? '')}</span>
+                <i class="bi ${added ? 'bi-check2' : 'bi-plus-lg'}"></i>
+            </button>`;
+        }).join('');
+    }
+
+    async function refreshProducts() {
+        const g = await (await fetch(gamaUrl(pm.identifier))).json();
+        pm.products = g.products;
+        pm.dbfGama = g.dbf_gama;
+        renderProducts();
+    }
+
+    async function openProducts(identifier) {
+        pm = { identifier, products: [], dbfGama: null };
+        $('productsModalTitle').textContent = `Produse – ${gamas.find(g => g.identifier === identifier).title}`;
+        $('productSearch').value = '';
+        $('showZero').checked = false;
+        found = [];
+        renderResults();
+        await refreshProducts();
+        productsModal.show();
+    }
+
+    // the table behind the dialog shows the new product counts
+    async function changed() {
+        await refreshProducts();
+        renderResults();
+        load();
+    }
+
+    // the search always finds every product (stock 0 included): the checkbox only filters the added list
+    $('productSearch').addEventListener('input', e => {
+        clearTimeout(searchTimer);
+        const q = e.target.value.trim();
+        if (!q) {
+            found = [];
+            return renderResults();
+        }
+        searchTimer = setTimeout(async () => {
+            const data = await (await fetch('/api/products?' + new URLSearchParams({ q, limit: 8 }))).json();
+            found = data.products;
+            if (found.length) renderResults();
+            else $('searchResults').innerHTML = '<div class="muted small p-2">Niciun rezultat</div>';
+        }, 250);
+    });
+    $('showZero').addEventListener('change', renderProducts);
+
+    $('searchResults').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-add]');
+        if (!btn) return;
+        const res = await send(`${gamaUrl(pm.identifier)}/products`, 'POST', { barcode: found[btn.dataset.add].barcode });
+        if (!res.ok) return showToast((await res.json()).error || 'Adăugarea a eșuat', 'danger');
+        changed();
+    });
+
+    $('productList').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-remove]');
+        if (!btn) return;
+        const res = await send(`${gamaUrl(pm.identifier)}/products/${encodeURIComponent(btn.dataset.remove)}`, 'DELETE');
+        if (!res.ok) return showToast((await res.json()).error || 'Ștergerea a eșuat', 'danger');
+        changed();
+    });
+
+    // ---- table actions ----
+    $('gamaBody').addEventListener('click', async e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        if (btn.dataset.products) return openProducts(btn.dataset.products);
+        if (btn.dataset.edit) return openEdit(btn.dataset.edit);
+        const g = gamas.find(x => x.identifier === btn.dataset.delete);
+        if (!confirm(`Ștergi gama "${g.title}"?`)) return;
+        const res = await send(gamaUrl(g.identifier), 'DELETE');
+        if (res.ok) showToast('Gamă ștearsă');
+        else showToast((await res.json()).error || 'Ștergerea a eșuat', 'danger');
+        load();
+    });
+
+    load();
+</script>
+{% endblock %}

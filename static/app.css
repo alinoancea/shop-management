@@ -1,0 +1,185 @@
+:root {
+    --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Cascadia Mono', 'Consolas', 'Menlo', monospace;
+
+    --bg: #f7f7f8;
+    --surface: #ffffff;
+    --surface-2: #f4f4f5;
+    --hover: #fafafa;
+    --border: #e4e4e7;
+    --border-strong: #d4d4d8;
+    --text: #18181b;
+    --text-muted: #71717a;
+    --text-faint: #a1a1aa;
+
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: rgba(37, 99, 235, .09);
+
+    --radius: 10px;
+    --sidebar-w: 256px;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: .94rem;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Layout: sidebar + content ---- */
+.shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+    position: sticky;
+    top: 0;
+    flex-shrink: 0;
+    width: var(--sidebar-w);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.25rem .85rem;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: 0 .5rem;
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.brand:hover { color: var(--text); }
+.brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.brand-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; font-weight: 400; color: var(--text-muted); }
+.side-foot { margin-top: auto; padding: 0 .65rem; font-size: .74rem; color: var(--text); text-align: center; }
+.brand-badge {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+}
+
+.side-nav { display: flex; flex-direction: column; gap: 2px; }
+.side-link {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .55rem .65rem;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.side-link i { font-size: 1.05rem; }
+.side-link:hover { background: var(--surface-2); color: var(--text); }
+.side-link.active { background: var(--accent-soft); color: var(--accent); }
+
+.content { flex: 1; min-width: 0; padding: 2rem 2.25rem; }
+
+.page-head { margin-bottom: 1.5rem; }
+.page-head h1 { margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -.01em; }
+.page-head p { margin: .2rem 0 0; color: var(--text-muted); font-size: .9rem; }
+
+@media (max-width: 767.98px) {
+    .shell { flex-direction: column; }
+    .sidebar {
+        position: static;
+        width: auto;
+        height: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .5rem .75rem;
+        padding: .6rem .85rem;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .side-nav { flex-direction: row; flex-wrap: wrap; }
+    .side-foot { margin: 0; flex-basis: 100%; }
+    .content { padding: 1.25rem 1rem; }
+}
+
+/* ---- Shared components ---- */
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.btn-accent {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--accent-hover);
+    --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-active-bg: var(--accent-hover);
+    --bs-btn-active-border-color: var(--accent-hover);
+    --bs-btn-disabled-bg: var(--accent);
+    --bs-btn-disabled-border-color: var(--accent);
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* ---- Text helpers ---- */
+.mono { font-family: var(--font-mono); font-size: .86rem; white-space: nowrap; }
+.muted { color: var(--text-faint); }
+
+/* ---- Data tables, icon buttons, empty states ---- */
+.table-wrap { overflow-x: auto; }
+.data-table { --bs-table-bg: transparent; margin: 0; color: var(--text); }
+.data-table thead th {
+    padding: .7rem 1rem;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: .8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.data-table tbody td { padding: .72rem 1rem; border-color: var(--border); vertical-align: middle; }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background: var(--hover); }
+.data-table .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.btn-icon {
+    padding: .28rem .5rem;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--text-muted);
+    line-height: 1;
+}
+.btn-icon:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.empty-state { padding: 3.5rem 1rem; text-align: center; color: var(--text-faint); }
+.empty-state i { display: block; margin-bottom: .5rem; font-size: 2.4rem; opacity: .6; }
+.empty-state a { color: var(--accent); text-decoration: none; }
+.empty-state a:hover { text-decoration: underline; }
+.spinner-border { color: var(--accent); }
+
+.btn-icon.danger:hover { border-color: #dc2626; background: rgba(220, 38, 38, .08); color: #dc2626; }
+
+/* ---- Modals ---- */
+.modal-content { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.modal-header, .modal-footer { border-color: var(--border); }
+.modal-title { font-size: 1.05rem; font-weight: 600; }
+
+/* ---- Forms and toasts ---- */
+.form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
+.form-check-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1100; }

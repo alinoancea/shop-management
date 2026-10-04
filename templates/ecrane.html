@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% block title %}Configurare ecrane{% endblock %}
+
+{% block head %}
+<style>
+    .tag {
+        display: inline-block;
+        margin-left: .5rem;
+        padding: .1rem .5rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: .7rem;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+    .dot { display: inline-block; width: 8px; height: 8px; margin-right: .45rem; border-radius: 50%; background: var(--border-strong); }
+    .dot.on { background: #16a34a; }
+
+    .block-row { display: flex; gap: .75rem; }
+    .block-card { min-width: 0; padding: .85rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+    .block-card .width { margin-bottom: .5rem; color: var(--text-faint); font-size: .75rem; }
+    @media (max-width: 575.98px) {
+        .block-row { flex-direction: column; }
+        .block-card { flex: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <h1>Configurare ecrane</h1>
+    <p id="screenCount">—</p>
+</header>
+
+<div class="panel table-wrap">
+    <table class="table data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nume</th>
+                <th>Aranjament</th>
+                <th>Blocuri</th>
+                <th>IP</th>
+                <th>Ultima conexiune</th>
+                <th class="text-end">Acțiuni</th>
+            </tr>
+        </thead>
+        <tbody id="screenBody">
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <i class="bi bi-display"></i>
+                    <p class="mb-0">Se încarcă…</p>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="screenModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="screenModalTitle">Configurare ecran</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Închide"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label" for="screenName">Nume</label>
+                        <input class="form-control" id="screenName" placeholder="Ex. Raft băuturi">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="screenLayout">Aranjament</label>
+                        <select class="form-select" id="screenLayout"></select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="form-label mb-0">Blocuri</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="swapBtn">
+                        <i class="bi bi-arrow-left-right me-1"></i> Schimbă ordinea
+                    </button>
+                </div>
+                <div class="block-row" id="blocks"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Anulează</button>
+                <button type="button" class="btn btn-sm btn-accent" id="saveBtn">Salvează</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const LAYOUTS = {{ layouts|tojson }};   // [[name, [widths]], ...] in display order
+    const widthsOf = name => LAYOUTS.find(([n]) => n === name)[1];
+    const layoutLabel = ([, w]) => `${w.length === 1 ? 'Un bloc' : 'Două blocuri'} (${w.join(' + ')})`;
+    const $ = id => document.getElementById(id);
+    const modal = new bootstrap.Modal($('screenModal'));
+
+    let screens = [];
+    let refreshSeconds = 60;
+    let gamas = [];
+    let editing = null;   // {id, layout, blocks: [{gama, title}]}
+
+    // gamas = [{identifier, title, source: 'app'|'dbf', count}]; blocks store the identifier
+    const gamaOf = id => gamas.find(g => g.identifier.toLowerCase() === String(id).toLowerCase());
+    const gamaTitle = id => gamaOf(id)?.title ?? id;
+    const fetchGamas = async () => { gamas = await (await fetch('/api/gamas')).json(); };
+
+    function ago(iso) {
+        const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+        if (s < 60) return 'acum câteva secunde';
+        if (s < 3600) return `acum ${Math.floor(s / 60)} min`;
+        if (s < 86400) return `acum ${Math.floor(s / 3600)} h`;
+        return `acum ${Math.floor(s / 86400)} zile`;
+    }
+
+    // A screen counts as connected if it asked for its configuration within ~3 intervals
+    const isOnline = s => Date.now() - new Date(s.last_seen) < (3 * refreshSeconds + 10) * 1000;
+
+    function renderTable() {
+        $('screenCount').textContent = `${screens.length} ${screens.length === 1 ? 'ecran' : 'ecrane'}`;
+        $('screenBody').innerHTML = screens.length ? screens.map(s => `
+            <tr>
+                <td class="mono">${s.id}</td>
+                <td>${escapeHtml(s.name)}${s.configured ? '' : '<span class="tag">Nou</span>'}</td>
+                <td>${s.configured ? escapeHtml(layoutLabel(LAYOUTS.find(([n]) => n === s.layout))) : '<span class="muted">—</span>'}</td>
+                <td>${s.blocks.map(b => `${escapeHtml(b.title)} <span class="muted">${escapeHtml(gamaTitle(b.gama))}</span>`).join('<br>') || '<span class="muted">—</span>'}</td>
+                <td class="mono">${s.ip ? escapeHtml(s.ip) : '<span class="muted">—</span>'}</td>
+                <td class="text-nowrap" title="${escapeHtml(new Date(s.last_seen).toLocaleString('ro-RO'))}"><span class="dot ${isOnline(s) ? 'on' : ''}"></span>${ago(s.last_seen)}</td>
+                <td class="text-end text-nowrap">
+                    <button type="button" class="btn-icon" data-edit="${s.id}" title="Configurează" aria-label="Configurează"><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn-icon danger" data-delete="${s.id}" title="Șterge" aria-label="Șterge"><i class="bi bi-trash"></i></button>
+                </td>
+            </tr>`).join('') : `
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <i class="bi bi-display"></i>
+                    <p class="mb-0">Niciun ecran încă. Un ecran apare aici când se conectează pentru prima dată.</p>
+                </td>
+            </tr>`;
+    }
+
+    async function load() {
+        const [s, cfg] = await Promise.all(['/api/screens', '/api/settings'].map(u => fetch(u).then(r => r.json())));
+        screens = s;
+        refreshSeconds = cfg.screen_refresh_seconds;
+        renderTable();
+    }
+
+    // One card per block, as wide as the layout says (flex proportional to the width out of 6)
+    function renderBlocks() {
+        const widths = widthsOf(editing.layout);
+        $('swapBtn').hidden = widths.length < 2;
+        $('blocks').innerHTML = widths.map((w, i) => {
+            const b = editing.blocks[i];
+            const same = id => id.toLowerCase() === b.gama.toLowerCase();
+            // the identifier is never shown: gamas are listed by title, with their product count
+            const label = g => `${g.title} (${g.count})`;
+            const option = g => `<option value="${escapeHtml(g.identifier)}"${same(g.identifier) ? ' selected' : ''}>${escapeHtml(label(g))}</option>`;
+            const group = (name, source) => {
+                const list = gamas.filter(g => g.source === source);
+                return list.length ? `<optgroup label="${name}">${list.map(option).join('')}</optgroup>` : '';
+            };
+            const options = group('Game definite', 'app') + group('Game din gestiune', 'dbf');
+            // a saved gama that no longer exists still has to show up
+            const missing = b.gama && !gamaOf(b.gama)
+                ? `<option value="${escapeHtml(b.gama)}" selected>${escapeHtml(b.gama)} (0)</option>` : '';
+            return `
+                <div class="block-card" style="flex: ${w} 1 0">
+                    <div class="width">Lățime ${w} din 6</div>
+                    <label class="form-label small" for="gama${i}">Gamă</label>
+                    <select class="form-select form-select-sm mb-2" id="gama${i}" data-i="${i}" data-f="gama">
+                        <option value="">Alege gama…</option>${options}${missing}
+                    </select>
+                    <label class="form-label small" for="title${i}">Titlu afișat pe ecran</label>
+                    <input class="form-control form-control-sm" id="title${i}" data-i="${i}" data-f="title" value="${escapeHtml(b.title)}">
+                </div>`;
+        }).join('');
+    }
+
+    async function openEdit(id) {
+        const s = screens.find(x => x.id === id);
+        await fetchGamas();
+        editing = {
+            id,
+            layout: s.layout || LAYOUTS[0][0],
+            blocks: s.blocks.length ? s.blocks.map(b => ({ ...b })) : [{ gama: '', title: '' }],
+        };
+        $('screenModalTitle').textContent = `Configurare ecran ${id}`;
+        $('screenName').value = s.name;
+        $('screenLayout').innerHTML = LAYOUTS.map(l => `<option value="${escapeHtml(l[0])}">${escapeHtml(layoutLabel(l))}</option>`).join('');
+        $('screenLayout').value = editing.layout;
+        renderBlocks();
+        modal.show();
+    }
+
+    function onBlockChange(e) {
+        const { i, f } = e.target.dataset;
+        if (f === undefined) return;
+        const b = editing.blocks[i];
+        b[f] = e.target.value;
+        if (f === 'gama' && !b.title) {   // pre-fill the title the first time a gama is picked
+            b.title = gamaTitle(e.target.value);
+            $(`title${i}`).value = b.title;
+        }
+    }
+    $('blocks').addEventListener('input', onBlockChange);
+    $('blocks').addEventListener('change', onBlockChange);
+
+    $('screenLayout').addEventListener('change', e => {
+        editing.layout = e.target.value;
+        const n = widthsOf(editing.layout).length;
+        while (editing.blocks.length < n) editing.blocks.push({ gama: '', title: '' });
+        editing.blocks.length = n;
+        renderBlocks();
+    });
+
+    $('swapBtn').addEventListener('click', () => {
+        editing.blocks.reverse();
+        renderBlocks();
+    });
+
+    $('saveBtn').addEventListener('click', async () => {
+        const { id, layout, blocks } = editing;
+        try {
+            const res = await fetch(`/api/screens/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: $('screenName').value, layout, blocks }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            modal.hide();
+            showToast('Ecran salvat');
+            await load();
+        } catch (e) {
+            showToast(e.message || 'Salvarea a eșuat', 'danger');
+        }
+    });
+
+    $('screenBody').addEventListener('click', async e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        if (btn.dataset.edit) return openEdit(Number(btn.dataset.edit));
+        const s = screens.find(x => x.id === Number(btn.dataset.delete));
+        if (!confirm(`Ștergi ecranul "${s.name}"? Dispozitivul nu va mai primi configurația.`)) return;
+        const res = await fetch(`/api/screens/${s.id}`, { method: 'DELETE' });
+        showToast(res.ok ? 'Ecran șters' : 'Ștergerea a eșuat', res.ok ? 'success' : 'danger');
+        load();
+    });
+
+    fetchGamas().then(() => {
+        load();
+        setInterval(load, 10000);   // new screens and connection times show up without a reload
+    });
+</script>
+{% endblock %}

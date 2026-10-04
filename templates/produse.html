@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Verificare produse{% endblock %}
+
+{% block head %}
+<style>
+    .search {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        margin: 0 0 1rem;
+        padding: 0 .9rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: text;
+    }
+    .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .search i { color: var(--text-faint); }
+    .search input {
+        flex: 1;
+        min-width: 0;
+        padding: .62rem 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+    }
+    .search input::placeholder { color: var(--text-faint); }
+
+    .pagination { gap: 4px; }
+    .page-item .page-link {
+        margin-left: 0 !important;
+        padding: .35rem .7rem;
+        border: 1px solid var(--border);
+        border-radius: 7px !important;
+        background: var(--surface);
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    .page-link:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--text); }
+    .page-item.active .page-link { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .page-item.disabled .page-link { background: var(--surface); color: var(--text-faint); }
+    .page-info { color: var(--text-faint); font-size: .84rem; }
+
+    .detail-key { width: 38%; font-weight: 500; color: var(--text-muted); }
+    #detailContent .table { --bs-table-bg: transparent; --bs-table-border-color: var(--border); color: var(--text); }
+    #detailContent code { padding: .1rem .4rem; border-radius: 5px; background: var(--surface-2); color: var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <h1>Verificare produse</h1>
+    <p id="totalCount">—</p>
+</header>
+
+<label class="search">
+    <i class="bi bi-search"></i>
+    <input type="search" id="searchInput" placeholder="Caută după cod de bare, nume, cantitate, gama…" autofocus>
+</label>
+
+<div class="panel table-wrap">
+    <table class="table data-table">
+        <thead>
+            <tr id="productTableHeader"></tr>
+        </thead>
+        <tbody id="productTableBody">
+            <tr>
+                <td colspan="99" class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p class="mb-0">Se încarcă produsele…</p>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+    <nav aria-label="Paginare">
+        <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
+    </nav>
+    <span class="page-info" id="pageInfo">—</span>
+</div>
+
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0">Detalii produs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Închide"></button>
+            </div>
+            <div class="modal-body p-0" id="detailContent"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+        const PAGE_SIZE = 25;
+        // Columns shown in the table (besides barcode, name and actions)
+        const DISPLAY_FIELDS = ['quantity', 'price'];
+        // Romanian labels for column / field keys
+        const FIELD_LABELS = {
+            quantity: 'Cantitate',
+            price: 'Preț',
+            um: 'UM',
+            datei: 'Data',
+            gama: 'Gama',
+            pretuv: 'Preț fără TVA',
+            tva: 'TVA',
+            fel: 'Fel',
+            discol: 'Discount',
+        };
+        const labelFor = k => FIELD_LABELS[k] || k;
+        let currentPage = 1;
+        let searchQuery = '';
+        let totalProducts = 0;
+        let products = [];
+        let searchTimeout;
+
+        function renderTableHeader() {
+            const tr = document.getElementById('productTableHeader');
+            tr.innerHTML = `
+                <th scope="col">Cod de bare</th>
+                <th scope="col">Nume</th>
+                ${DISPLAY_FIELDS.map(f => `<th scope="col" class="text-end">${escapeHtml(labelFor(f))}</th>`).join('')}
+                <th scope="col" class="text-end">Acțiuni</th>`;
+        }
+
+        // DISPLAY_FIELDS are numeric, so their cells are right-aligned; price always shows 2 decimals
+        function cellForDataField(v, field) {
+            if (field === 'price' && v != null) v = Number(v).toFixed(2);
+            return `<td class="text-end num">${escapeHtml(v ?? '')}</td>`;
+        }
+
+        async function loadProducts(page = 1) {
+            currentPage = page;
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = '<tr><td colspan="99" class="text-center py-5"><div class="spinner-border" role="status"></div></td></tr>';
+
+            const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+            if (searchQuery) params.set('q', searchQuery);
+            const res = await fetch('/api/products?' + params);
+            const data = await res.json();
+            totalProducts = data.total;
+
+            renderTableHeader();
+
+            if (data.products.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="99" class="empty-state">
+                            <i class="bi bi-search"></i>
+                            <p class="mb-0">Niciun produs găsit. <a href="/settings">Adaugă fișiere DBF în Setări</a>.</p>
+                        </td>
+                    </tr>`;
+            } else {
+                products = data.products;
+                tbody.innerHTML = products.map((p, i) => {
+                    const d = p.data || {};
+                    const fieldCells = DISPLAY_FIELDS.map(f => cellForDataField(d[f], f));
+                    const bc = escapeHtml(p.barcode);
+                    return `
+                    <tr>
+                        <td class="mono">${bc}</td>
+                        <td>${escapeHtml(p.name || p.barcode)}</td>
+                        ${fieldCells.join('')}
+                        <td class="text-end">
+                            <button type="button" class="btn-icon btn-detail" data-i="${i}" title="Detalii" aria-label="Detalii">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `}).join('');
+            }
+
+            document.getElementById('totalCount').textContent = `${totalProducts} ${totalProducts !== 1 ? 'produse' : 'produs'}`;
+            renderPagination(page, data.total);
+            document.getElementById('pageInfo').textContent =
+                `Pagina ${page} din ${Math.ceil(data.total / PAGE_SIZE) || 1}`;
+        }
+
+        function renderPagination(page, total) {
+            const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+            const pagination = document.getElementById('pagination');
+            let html = '';
+
+            html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${page - 1}">‹</a></li>`;
+
+            for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) {
+                html += `<li class="page-item ${i === page ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+            }
+
+            html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${page + 1}">›</a></li>`;
+
+            pagination.innerHTML = html;
+            pagination.querySelectorAll('a').forEach(a => {
+                a.addEventListener('click', e => {
+                    e.preventDefault();
+                    const p = parseInt(a.dataset.page, 10);
+                    if (!isNaN(p)) loadProducts(p);
+                });
+            });
+        }
+
+        document.getElementById('productTableBody').addEventListener('click', e => {
+            const btn = e.target.closest('.btn-detail');
+            if (btn) showDetail(products[btn.dataset.i]);
+        });
+
+        function showDetail(p) {
+            const data = p.data || {};
+            const ordered = Object.keys(data).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+            const rows = ordered.map(k => {
+                const v = data[k];
+                const disp = v === null || v === undefined || v === '' ? '' : String(v);
+                return `<tr><th class="detail-key">${escapeHtml(labelFor(k))}</th><td class="text-break">${escapeHtml(disp)}</td></tr>`;
+            }).join('');
+            document.getElementById('detailContent').innerHTML = `
+                <div class="table-responsive p-3">
+                    <table class="table table-sm mb-0 align-middle">
+                        <tbody>
+                            <tr><th class="detail-key">Cod de bare</th><td class="text-break"><code>${escapeHtml(p.barcode)}</code></td></tr>
+                            <tr><th class="detail-key">Nume</th><td class="text-break">${escapeHtml(p.name || p.barcode)}</td></tr>
+                            <tr><th class="detail-key">Actualizat</th><td class="text-break">${formatDate(p.updated_at)}</td></tr>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>`;
+            new bootstrap.Modal(document.getElementById('detailModal')).show();
+        }
+
+        function formatDate(iso) {
+            return iso ? new Date(iso).toLocaleString('ro-RO') : '';
+        }
+
+        document.getElementById('searchInput').addEventListener('input', e => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchQuery = e.target.value.trim();
+                currentPage = 1;
+                loadProducts(1);
+            }, 300);
+        });
+
+        // Reload the list when a background sync finishes
+        let wasInProgress = false;
+        setInterval(async () => {
+            const status = await (await fetch('/api/sync/status')).json();
+            if (wasInProgress && !status.in_progress && status.last_result) {
+                await loadProducts(currentPage);
+            }
+            wasInProgress = status.in_progress;
+        }, 3000);
+
+        loadProducts(1);
+    </script>
+{% endblock %}

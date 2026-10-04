@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Setări{% endblock %}
+
+{% block head %}
+<style>
+    .panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.1rem 1.25rem; }
+    .store-form { width: 22rem; max-width: 100%; flex-wrap: nowrap; }
+    .refresh-form { width: auto; flex-wrap: nowrap; }
+    .refresh-form input { width: 5.5rem; flex: none; }
+    .panel-head h2 { margin: 0 0 .2rem; font-size: 1rem; font-weight: 600; }
+    .panel-head p { margin: 0; color: var(--text-muted); font-size: .86rem; }
+    .panel-head .sync-line { margin-top: .4rem; font-weight: 500; }
+
+    .empty-dbf { padding: 2.25rem 1rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-faint); }
+    .empty-dbf i { display: block; margin-bottom: .4rem; font-size: 1.8rem; opacity: .7; }
+
+    .dbf-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: .7rem 1.25rem;
+        border-top: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: .84rem;
+    }
+    .dbf-list-item:hover { background: var(--hover); }
+    .dbf-list-item .path { word-break: break-all; }
+    .remove-btn {
+        --bs-btn-color: var(--text-faint);
+        --bs-btn-border-color: transparent;
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: #dc2626;
+        --bs-btn-hover-border-color: #dc2626;
+        flex-shrink: 0;
+        border-radius: 7px;
+    }
+
+    .panel-foot { display: flex; gap: .5rem; padding: .8rem 1.25rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: .82rem; }
+    .panel-foot i { margin-top: .1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+    <h1>Setări</h1>
+</header>
+
+<section class="panel mb-4">
+    <div class="panel-head">
+        <div>
+            <h2>Magazin</h2>
+            <p>Numele apare în meniul din stânga, sub titlul aplicației.</p>
+        </div>
+        <div class="input-group input-group-sm store-form">
+            <input type="text" class="form-control" id="storeName" maxlength="60" placeholder="Ex. Magazin Centru" aria-label="Numele magazinului" autocomplete="off">
+            <button class="btn btn-accent" type="button" id="saveStoreBtn">Salvează</button>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Fișiere DBF</h2>
+            <p>Aceste fișiere DBF sunt procesate la fiecare 5 minute. Modificările se salvează automat.</p>
+            <p class="sync-line" id="syncStatus"></p>
+        </div>
+        <button class="btn btn-sm btn-accent text-nowrap" type="button" id="addBtn">
+            <i class="bi bi-folder2-open me-1"></i> Alege fișier DBF…
+        </button>
+    </div>
+
+    <div id="dbfList">
+        <div class="empty-dbf" id="emptyState">
+            <i class="bi bi-database-dash"></i>
+            Niciun fișier DBF configurat. Alege unul cu butonul de mai sus.
+        </div>
+        <div id="dbfItems"></div>
+    </div>
+
+    <div class="panel-foot">
+        <i class="bi bi-info-circle"></i>
+        <span>Dialogul de selectare se deschide pe calculatorul pe care rulează serverul. Fișierul trebuie să fie accesibil procesului serverului.</span>
+    </div>
+</section>
+
+<section class="panel mt-4">
+    <div class="panel-head">
+        <div>
+            <h2>Ecrane</h2>
+            <p>Cât de des cer ecranele configurația de la server. O modificare apare pe ecran după cel mult acest interval.</p>
+        </div>
+        <div class="input-group input-group-sm refresh-form">
+            <input type="number" class="form-control" id="refreshSeconds" min="{{ refresh_range[0] }}" max="{{ refresh_range[1] }}" aria-label="Interval în secunde">
+            <span class="input-group-text">secunde</span>
+            <button class="btn btn-accent" type="button" id="saveRefreshBtn">Salvează</button>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+        function renderList(paths) {
+            const items = document.getElementById('dbfItems');
+            document.getElementById('emptyState').style.display = paths.length ? 'none' : 'block';
+            items.innerHTML = paths.map(path => `
+                <div class="dbf-list-item">
+                    <span class="path">${escapeHtml(path)}</span>
+                    <button class="btn btn-sm remove-btn" type="button"><i class="bi bi-trash"></i></button>
+                </div>
+            `).join('');
+            items.querySelectorAll('.remove-btn').forEach((btn, i) => {
+                btn.onclick = () => removeDbf(paths[i]);
+            });
+        }
+
+        // Runs a settings request, re-renders the list and toasts. Resolves true on success.
+        async function call(url, opts, okMsg, failMsg) {
+            try {
+                const res = await fetch(url, opts);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || failMsg);
+                renderList(data.dbf_files);
+                showToast(okMsg);
+                return true;
+            } catch (e) {
+                showToast(e.message || failMsg, 'danger');
+                return false;
+            }
+        }
+
+        async function addDbf() {
+            const btn = document.getElementById('addBtn');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/settings/dbf/pick', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                if (!data.path) return; // dialog cancelled
+                if (!data.path.toLowerCase().endsWith('.dbf')) {
+                    showToast('Fișierul trebuie să aibă extensia .dbf', 'warning');
+                    return;
+                }
+                await call('/api/settings/dbf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: data.path })
+                }, 'Fișier DBF adăugat și salvat', 'Adăugarea a eșuat');
+            } catch (e) {
+                showToast(e.message || 'Nu se poate deschide dialogul de selectare', 'danger');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        const removeDbf = path => call('/api/settings/dbf?path=' + encodeURIComponent(path),
+            { method: 'DELETE' }, 'Fișier DBF șters și salvat', 'Ștergerea a eșuat');
+
+        document.getElementById('addBtn').addEventListener('click', addDbf);
+
+        fetch('/api/settings').then(r => r.json()).then(d => {
+            renderList(d.dbf_files || []);
+            document.getElementById('refreshSeconds').value = d.screen_refresh_seconds;
+            document.getElementById('storeName').value = d.store_name;
+        });
+
+        document.getElementById('saveStoreBtn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/settings/store', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: document.getElementById('storeName').value })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                document.getElementById('brandStore').textContent = data.store_name;  // update the menu without a reload
+                showToast('Numele magazinului a fost salvat');
+            } catch (e) {
+                showToast(e.message || 'Salvarea a eșuat', 'danger');
+            }
+        });
+
+        document.getElementById('saveRefreshBtn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/settings/screens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_seconds: document.getElementById('refreshSeconds').value })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                showToast('Interval salvat');
+            } catch (e) {
+                showToast(e.message || 'Salvarea a eșuat', 'danger');
+            }
+        });
+
+        async function refreshSync() {
+            const s = await (await fetch('/api/sync/status')).json();
+            const r = s.last_result;
+            document.getElementById('syncStatus').textContent =
+                s.in_progress ? 'Sincronizare în curs…'
+                : r?.error ? `Ultima sincronizare a eșuat: ${r.error}`
+                : r?.finished_at ? `Ultima sincronizare: ${new Date(r.finished_at).toLocaleString('ro-RO')}`
+                : 'Nicio sincronizare încă.';
+        }
+        refreshSync();
+        setInterval(refreshSync, 3000);
+    </script>
+{% endblock %}
