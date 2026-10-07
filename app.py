@@ -1,6 +1,8 @@
 """Flask application with web UI and API."""
+import errno
 import logging
 import os
+import socket
 import subprocess
 import sys
 
@@ -432,7 +434,26 @@ def api_remove_dbf():
     return jsonify(load_settings())
 
 
+def _port_in_use(host: str, port: int) -> bool:
+    """True if another socket already holds host:port. Checked up front because the Flask dev server
+    sets SO_REUSEADDR, which on Windows lets a second process bind the same port without any error."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if os.name != "nt":  # on POSIX SO_REUSEADDR only skips TIME_WAIT leftovers, as it should
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind((host, port))
+        except OSError as e:
+            return e.errno == errno.EADDRINUSE  # other failures (bad address, no permission) surface in app.run
+    return False
+
+
 if __name__ == "__main__":
+    if _port_in_use(config.HOST, config.PORT):
+        sys.exit(
+            f"Port {config.PORT} on {config.HOST} is already in use (another program, or this app already running).\n"
+            "Set APP_PORT to another port (e.g. APP_PORT=8080) and start again."
+        )
+    init_db()  # create the tables now: the first DBF sync must not wait for the first web request
     start_scheduler()
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
-    app.run(host="0.0.0.0", port=5000, debug=debug)
+    app.run(host=config.HOST, port=config.PORT, debug=debug)

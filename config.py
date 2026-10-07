@@ -41,6 +41,11 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "products.db")
 # Parse interval in minutes
 PARSE_INTERVAL_MINUTES = int(os.getenv("PARSE_INTERVAL_MINUTES", "5"))
 
+# Where the web server listens. 0.0.0.0 = every network interface, so screens and other PCs can connect
+# (there is no login: keep it on the local network). Set APP_HOST to 127.0.0.1 to allow only this machine.
+HOST = os.getenv("APP_HOST", "0.0.0.0")
+PORT = int(os.getenv("APP_PORT", "18766"))
+
 # Shown next to the store name under the app title. Bump it when you release a change.
 APP_VERSION = "1.0.0"
 

@@ -3,7 +3,10 @@
 Uses a temporary database and settings file, so real data is never touched.
 """
 import os
+import socket
 import sqlite3
+import subprocess
+import sys
 import tempfile
 from contextlib import closing
 from pathlib import Path
@@ -258,6 +261,29 @@ try:
     assert old["name"] == "Vechi" and old["ip"] is None
 finally:
     config.DATABASE_PATH = current_db
+
+# --- where the server listens: 0.0.0.0:18766 unless APP_HOST / APP_PORT say otherwise ---
+def listen_address(**env):
+    out = subprocess.run(
+        [sys.executable, "-c", "import config; print(config.HOST, config.PORT)"],
+        env={**{k: v for k, v in os.environ.items() if k not in ("APP_HOST", "APP_PORT")}, **env},
+        capture_output=True, text=True, check=True,
+    )
+    return out.stdout.split()
+
+
+assert listen_address() == ["0.0.0.0", "18766"]
+assert listen_address(APP_HOST="127.0.0.1", APP_PORT="8080") == ["127.0.0.1", "8080"]
+
+# the up-front port check: Windows would let a second process share a busy port without an error
+with socket.socket() as busy:
+    busy.bind(("127.0.0.1", 0))
+    busy.listen()
+    assert appmod._port_in_use("127.0.0.1", busy.getsockname()[1]) is True
+with socket.socket() as probe:
+    probe.bind(("127.0.0.1", 0))
+    free_port = probe.getsockname()[1]
+assert appmod._port_in_use("127.0.0.1", free_port) is False
 
 # --- pages: each section highlights itself in the menu, interval limits reach the form ---
 for path in ("/produse", "/game", "/ecrane", "/settings"):

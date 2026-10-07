@@ -3,11 +3,11 @@
 Până acum configurația fiecărui ecran (ce game afișează, titluri, lățimi) era setată local, pe dispozitiv.
 Acum ea este definită **pe server**, iar dispozitivul doar o citește și o afișează. Dispozitivul nu mai decide singur ce afișează.
 
-Serverul este o aplicație Flask pe rețeaua locală (implicit portul `5000`). Nu există autentificare. Toate răspunsurile sunt JSON, UTF-8.
+Serverul este o aplicație Flask pe rețeaua locală. Implicit ascultă pe `0.0.0.0:18766`, adică pe toate interfețele de rețea, deci dispozitivele din rețeaua locală îl pot accesa (adresa și portul se schimbă cu `APP_HOST` și `APP_PORT`; `APP_HOST=127.0.0.1` îl limitează la calculatorul pe care rulează). Portul trebuie scris mereu în adresă, ex. `http://192.168.1.10:18766`. Nu există autentificare. Toate răspunsurile sunt JSON, UTF-8.
 
 ## Ce păstrează dispozitivul local
 
-1. **Adresa serverului**, ex. `http://192.168.1.10:5000` (setare locală, singura rămasă obligatorie).
+1. **Adresa serverului**, cu portul inclus, ex. `http://192.168.1.10:18766` (portul implicit; dacă serverul rulează pe alt port, folosește-l pe acela). Este setarea locală, singura rămasă obligatorie.
 2. **Identificatorul ecranului** (număr întreg, ex. `7`), primit de la server. Trebuie salvat **pe disc** și să supraviețuiască repornirii.
 3. Ultimul răspuns valid de la server (pentru situația în care serverul nu răspunde).
 
@@ -92,9 +92,9 @@ Utilizatorul trebuie să poată **introduce/schimba identificatorul direct pe di
 ## Cum se testează (de pe un calculator din rețea)
 
 ```
-curl -X POST http://SERVER:5000/api/screens/register
-curl http://SERVER:5000/json_screen/1
-curl http://SERVER:5000/json_screen/99999     # trebuie să dea 404
+curl -X POST http://SERVER:18766/api/screens/register
+curl http://SERVER:18766/json_screen/1
+curl http://SERVER:18766/json_screen/99999     # trebuie să dea 404
 ```
 
 Verificări: (1) la prima pornire primește un id și îl păstrează după repornire; (2) neconfigurat arată „ID n"; (3) după configurare în aplicație, apare singur după cel mult `refresh_seconds`; (4) cu serverul oprit continuă să afișeze ultimele produse; (5) un produs cu stoc 0 din gamă nu apare pe ecran; (6) schimbarea id-ului din ecran face dispozitivul să preia alt ecran.

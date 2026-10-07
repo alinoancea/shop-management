@@ -39,8 +39,20 @@ Open **Settings** (gear icon) in the web UI and add the full paths to your `.dbf
 python app.py
 ```
 
-- **Web interface**: http://localhost:5000
-- **API**: http://localhost:5000/api/products
+- **Web interface**: http://127.0.0.1:18766
+- **API**: http://127.0.0.1:18766/api/products
+
+By default the server listens on `0.0.0.0:18766`, i.e. on every network interface, so screens and other PCs on the
+network can connect. There is no login: keep it on the local network. To allow only the machine it runs on, or to
+change the port, set environment variables before starting it
+(PowerShell: `$env:APP_HOST = "127.0.0.1"; python app.py`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_HOST` | `0.0.0.0` | Address to listen on. `0.0.0.0` = every network interface, `127.0.0.1` = this machine only |
+| `APP_PORT` | `18766` | Port to listen on. If it is already taken, the app stops with a message: choose another port |
+
+Screens then use `http://<machine-IP>:<port>`, e.g. `http://192.168.1.10:18766`.
 
 ## API Endpoints
 
