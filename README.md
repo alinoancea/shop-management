@@ -42,6 +42,10 @@ python app.py
 - **Web interface**: http://127.0.0.1:18766
 - **API**: http://127.0.0.1:18766/api/products
 
+`python app.py` serves the app with [waitress](https://docs.pylonsproject.org/projects/waitress/) (a production
+WSGI server that works on Windows) and starts the DBF sync in the background. With `FLASK_DEBUG=1` it uses Flask's
+development server instead, with auto-reload; the same happens if waitress is not installed (a warning says so).
+
 By default the server listens on `0.0.0.0:18766`, i.e. on every network interface, so screens and other PCs on the
 network can connect. There is no login: keep it on the local network. To allow only the machine it runs on, or to
 change the port, set environment variables before starting it

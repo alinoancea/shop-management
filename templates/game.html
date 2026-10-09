@@ -22,8 +22,9 @@
     .result { width: 100%; border: 0; border-top: 1px solid var(--border); background: var(--surface); color: var(--text); text-align: left; }
     .result:first-child { border-top: 0; }
     .result:hover:not(:disabled) { background: var(--hover); }
-    .result:disabled { color: var(--text-faint); }
+    .result:disabled { background: rgba(22, 163, 74, .10); color: var(--text); cursor: default; }  /* already in the gama: pale green */
     .result i { justify-self: end; }
+    .result:disabled i { color: #16a34a; }
 
     .list-head { margin-top: .75rem; padding-bottom: 0; color: var(--text-faint); font-size: .78rem; font-weight: 600; }
     .product-list { max-height: 320px; margin: .25rem 0 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--border); border-radius: 8px; }

@@ -448,7 +448,9 @@ def _port_in_use(host: str, port: int) -> bool:
 
 
 if __name__ == "__main__":
-    if _port_in_use(config.HOST, config.PORT):
+    # With FLASK_DEBUG the auto-reloader restarts this file in a child process, and the parent already holds the port
+    reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if not reloader_child and _port_in_use(config.HOST, config.PORT):
         sys.exit(
             f"Port {config.PORT} on {config.HOST} is already in use (another program, or this app already running).\n"
             "Set APP_PORT to another port (e.g. APP_PORT=8080) and start again."
@@ -456,4 +458,13 @@ if __name__ == "__main__":
     init_db()  # create the tables now: the first DBF sync must not wait for the first web request
     start_scheduler()
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
-    app.run(host=config.HOST, port=config.PORT, debug=debug)
+    if debug:
+        app.run(host=config.HOST, port=config.PORT, debug=True)  # development: auto-reload on code changes
+    else:
+        try:
+            from waitress import serve  # production WSGI server (works on Windows)
+        except ImportError:
+            logging.warning("waitress is not installed, using Flask's development server (pip install waitress)")
+            app.run(host=config.HOST, port=config.PORT)
+        else:
+            serve(app, host=config.HOST, port=config.PORT, threads=8)
