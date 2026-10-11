@@ -81,10 +81,15 @@
                         <input type="number" class="form-control" id="screenHeight" min="{{ height_range[0] }}" max="{{ height_range[1] }}" placeholder="Implicită">
                         <div class="form-text">Pentru ecrane late sau cu rezoluție mare. Gol = valoarea implicită a ecranului. Între {{ height_range[0] }} și {{ height_range[1] }} px.</div>
                     </div>
-                    <div class="col-12">
+                    <div class="col-sm-8">
                         <label class="form-label" for="screenText">Text afișat pe ecran</label>
                         <input class="form-control" id="screenText" maxlength="{{ text_max }}" placeholder="Opțional. Ex. Oferta săptămânii: -20% la mezeluri" autocomplete="off">
                         <div class="form-text">Se trimite ecranului odată cu produsele; unde și cum apare decide programul de pe ecran. Gol = fără text. Cel mult {{ text_max }} de caractere.</div>
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label" for="screenTextSize">Mărimea textului (px)</label>
+                        <input type="number" class="form-control" id="screenTextSize" min="{{ text_size_range[0] }}" max="{{ text_size_range[1] }}" placeholder="Implicită">
+                        <div class="form-text">Între {{ text_size_range[0] }} și {{ text_size_range[1] }} px. Gol = implicită.</div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -190,6 +195,7 @@
             + row('Aranjament', layout)
             + row('Înălțimea unui produs', s.product_height ? `${s.product_height} px` : '<span class="muted">implicită</span>')
             + row('Text afișat pe ecran', s.text ? escapeHtml(s.text) : dash)
+            + row('Mărimea textului', s.text_size ? `${s.text_size} px` : '<span class="muted">implicită</span>')
             + row('Blocuri', blocks);
         infoModal.show();
     }
@@ -244,6 +250,7 @@
         $('screenName').value = s.name;
         $('screenHeight').value = s.product_height ?? '';
         $('screenText').value = s.text ?? '';
+        $('screenTextSize').value = s.text_size ?? '';
         $('screenLayout').innerHTML = LAYOUTS.map(l => `<option value="${escapeHtml(l[0])}">${escapeHtml(layoutLabel(l))}</option>`).join('');
         $('screenLayout').value = editing.layout;
         renderBlocks();
@@ -288,6 +295,7 @@
                     blocks,
                     product_height: $('screenHeight').value,
                     text: $('screenText').value,
+                    text_size: $('screenTextSize').value,
                 }),
             });
             const data = await res.json();

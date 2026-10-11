@@ -58,5 +58,8 @@ SCREEN_PRODUCT_HEIGHT_RANGE = (20, 1000)
 # Longest text (characters) that can be set for a screen to display
 SCREEN_TEXT_MAX = 200
 
+# Allowed range (pixels) for the optional size of that text
+SCREEN_TEXT_SIZE_RANGE = (8, 300)
+
 # Allowed range (seconds) for how often screen devices ask for their configuration
 SCREEN_REFRESH_RANGE = (10, 3600)

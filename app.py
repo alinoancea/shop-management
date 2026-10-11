@@ -116,6 +116,7 @@ def ecrane():
         layouts=list(config.SCREEN_LAYOUTS.items()),
         height_range=config.SCREEN_PRODUCT_HEIGHT_RANGE,
         text_max=config.SCREEN_TEXT_MAX,
+        text_size_range=config.SCREEN_TEXT_SIZE_RANGE,
     )
 
 
@@ -160,6 +161,7 @@ def json_screen(screen_id):
         "refresh_seconds": get_screen_refresh(),
         "product_height": screen["product_height"],
         "text": screen["text"],
+        "text_size": screen["text_size"],
         "blocks": [
             {
                 "title": b["title"],
@@ -190,7 +192,7 @@ def _parse_pixels(value, limits: tuple, label: str):
 
 
 def _parse_screen(data: dict):
-    """Validate a screen payload. Returns ((name, layout, blocks, product_height, text), None) or (None, error)."""
+    """Validate a screen payload. Returns ((name, layout, blocks, product_height, text, text_size), None) or (None, error)."""
     layout = data.get("layout")
     widths = config.SCREEN_LAYOUTS.get(layout) if isinstance(layout, str) else None
     if widths is None:
@@ -214,7 +216,10 @@ def _parse_screen(data: dict):
     text = (text or "").strip()
     if len(text) > config.SCREEN_TEXT_MAX:
         return None, f"Textul poate avea cel mult {config.SCREEN_TEXT_MAX} de caractere"
-    return (str(data.get("name") or "").strip() or None, layout, blocks, height, text or None), None
+    text_size, error = _parse_pixels(data.get("text_size"), config.SCREEN_TEXT_SIZE_RANGE, "Mărimea textului")
+    if error:
+        return None, error
+    return (str(data.get("name") or "").strip() or None, layout, blocks, height, text or None, text_size), None
 
 
 @app.route("/api/screens")
@@ -225,8 +230,8 @@ def api_screens():
 
 @app.route("/api/screens/<int:screen_id>", methods=["PUT"])
 def api_save_screen(screen_id):
-    """API: Configure a screen: {"name", "layout", "blocks": [{"gama", "title"}], "product_height", "text"}.
-    product_height (pixels) and text (shown on the screen) are optional; leave them out or empty for none."""
+    """API: Configure a screen: {"name", "layout", "blocks": [{"gama", "title"}], "product_height", "text", "text_size"}.
+    product_height and text_size (pixels) and text (shown on the screen) are optional; leave them out or empty for none."""
     parsed, error = _parse_screen(request.get_json(silent=True) or {})
     if error:
         return jsonify({"error": error}), 400

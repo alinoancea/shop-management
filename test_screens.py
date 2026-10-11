@@ -48,7 +48,7 @@ assert c.post("/api/screens/register").get_json() == {"id": 2}
 j = c.get("/json_screen/1").get_json()
 assert j["configured"] is False and j["layout"] is None and j["blocks"] == []
 assert j["product_height"] is None and "font_size" not in j  # nothing set: the device uses its own default
-assert j["text"] is None  # no text to show
+assert j["text"] is None and j["text_size"] is None  # no text to show
 assert j["name"] == "Ecran 1" and j["refresh_seconds"] == 60
 assert c.get("/json_screen/99").status_code == 404
 
@@ -114,6 +114,20 @@ assert c.get("/json_screen/1").get_json()["text"] == "Oferta saptamanii: -20% la
 assert put({**base, "text": "x" * 200}).status_code == 200 and c.get("/json_screen/1").get_json()["text"] == "x" * 200
 assert put({**base, "text": "   "}).status_code == 200 and c.get("/json_screen/1").get_json()["text"] is None  # blank = no text
 assert put(base).status_code == 200 and c.get("/json_screen/1").get_json()["text"] is None
+
+# --- the size of that text: optional pixel value, same rules as the product height ---
+assert put({**base, "text": "Oferta", "text_size": "48"}).status_code == 200
+j = c.get("/json_screen/1").get_json()
+assert (j["text"], j["text_size"]) == ("Oferta", 48)
+assert [s["text_size"] for s in c.get("/api/screens").get_json()][0] == 48
+for bad in ({"text_size": 7}, {"text_size": 301}, {"text_size": -1}, {"text_size": "abc"}, {"text_size": 12.5},
+            {"text_size": True}):
+    assert put({**base, "text": "Oferta", **bad}).status_code == 400, bad
+assert c.get("/json_screen/1").get_json()["text_size"] == 48  # refused saves changed nothing
+assert put({**base, "text": "Oferta", "text_size": ""}).status_code == 200  # empty = the device's default
+assert c.get("/json_screen/1").get_json()["text_size"] is None
+assert put({**base, "text": "Oferta", "text_size": 40}).status_code == 200 and put(base).status_code == 200
+assert c.get("/json_screen/1").get_json()["text_size"] is None  # leaving it out resets it
 
 # --- listing, gamas, last_seen ---
 screens = c.get("/api/screens").get_json()
@@ -289,7 +303,7 @@ try:
     init_db()
     old = get_screen(1)
     assert old["name"] == "Vechi" and old["ip"] is None
-    assert old["product_height"] is None and old["text"] is None
+    assert old["product_height"] is None and old["text"] is None and old["text_size"] is None
 finally:
     config.DATABASE_PATH = current_db
 

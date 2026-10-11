@@ -34,6 +34,7 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
   "refresh_seconds": 60,
   "product_height": 140,
   "text": "Oferta săptămânii: -20% la mezeluri",
+  "text_size": 40,
   "blocks": [
     {
       "title": "Fructe proaspete",
@@ -59,6 +60,7 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
 - `refresh_seconds`: la câte secunde ceri din nou configurația (între 10 și 3600).
 - `product_height`: **înălțimea unui produs**, în **pixeli**, număr întreg (20–1000). Se setează pentru fiecare ecran, din aplicație, și se aplică la toate produsele din ambele blocuri; e gândită pentru ecrane late sau cu rezoluție mare. Poate fi `null`: atunci folosești înălțimea ta implicită, adică exact comportamentul de până acum. O citești din **fiecare** răspuns, ca orice altă setare, deci o modificare din aplicație apare pe ecran după cel mult `refresh_seconds`, fără repornire. Mărimea fontului **nu** se configurează din aplicație: o decizi tu pe display.
 - `text`: un **text liber, definit pentru acest ecran** în aplicație (cel mult 200 de caractere), sau `null` dacă nu e niciunul. Afișează-l pe ecran, ca mesaj vizibil (de exemplu o bandă sus sau jos): **unde și cum** apare decizi tu, serverul trimite doar textul. Afișează-l ca text simplu (nu ca HTML) și redă-l din **fiecare** răspuns: când se schimbă sau devine `null`, ecranul trebuie să-l actualizeze sau să-l ascundă, fără repornire.
+- `text_size`: **mărimea textului** de mai sus, în **pixeli**, număr întreg (8–300), sau `null` (folosești mărimea ta implicită). Se aplică doar textului ecranului, nu produselor. O citești din **fiecare** răspuns, ca restul.
 - `blocks`: **1 sau 2 blocuri**, în ordinea de la stânga la dreapta.
   - `title`: textul afișat deasupra blocului.
   - `width`: lățimea blocului în coloane dintr-o grilă de **6**. Blocurile unui ecran dau mereu împreună 6. Combinațiile posibile: `6`, `3+3`, `2+4`, `4+2`. Folosește direct `width`-ul fiecărui bloc, nu e nevoie să interpretezi `layout`.
