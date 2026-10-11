@@ -19,7 +19,7 @@ Serverul este o aplicație Flask pe rețeaua locală. Implicit ascultă pe `0.0.
 3. Cere configurația: `GET {server}/json_screen/{id}`. Repetă la fiecare `refresh_seconds` (valoare primită în răspuns, se poate schimba oricând din aplicație, deci o citești din **fiecare** răspuns).
 4. Afișează ce primește (vezi mai jos). La fiecare răspuns nou, redesenează.
 
-Serverul reține și **adresa IP** de pe care vine cererea (la `register` și la fiecare `GET /json_screen/{id}`) și o arată în aplicație, în „Configurare ecrane". Dispozitivul nu trebuie să trimită nimic în plus.
+Serverul reține și **adresa IP** de pe care vine cererea (la `register` și la fiecare `GET /json_screen/{id}`) și o arată în aplicație, în „Configurare ecrane", la butonul „Informații" al ecranului. Dispozitivul nu trebuie să trimită nimic în plus.
 
 Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicația afișează „ultima conexiune" și un indicator verde dacă a venit un răspuns în ultimele ~3 intervale. Nu cere configurația mai rar decât `refresh_seconds`.
 
@@ -32,6 +32,8 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
   "configured": true,
   "layout": "2+4",
   "refresh_seconds": 60,
+  "product_height": 140,
+  "text": "Oferta săptămânii: -20% la mezeluri",
   "blocks": [
     {
       "title": "Fructe proaspete",
@@ -55,6 +57,8 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
 
 - `configured`: `false` înseamnă că ecranul tocmai s-a înregistrat și nu are încă nimic setat în aplicație. Atunci `blocks` este `[]` și `layout` este `null`.
 - `refresh_seconds`: la câte secunde ceri din nou configurația (între 10 și 3600).
+- `product_height`: **înălțimea unui produs**, în **pixeli**, număr întreg (20–1000). Se setează pentru fiecare ecran, din aplicație, și se aplică la toate produsele din ambele blocuri; e gândită pentru ecrane late sau cu rezoluție mare. Poate fi `null`: atunci folosești înălțimea ta implicită, adică exact comportamentul de până acum. O citești din **fiecare** răspuns, ca orice altă setare, deci o modificare din aplicație apare pe ecran după cel mult `refresh_seconds`, fără repornire. Mărimea fontului **nu** se configurează din aplicație: o decizi tu pe display.
+- `text`: un **text liber, definit pentru acest ecran** în aplicație (cel mult 200 de caractere), sau `null` dacă nu e niciunul. Afișează-l pe ecran, ca mesaj vizibil (de exemplu o bandă sus sau jos): **unde și cum** apare decizi tu, serverul trimite doar textul. Afișează-l ca text simplu (nu ca HTML) și redă-l din **fiecare** răspuns: când se schimbă sau devine `null`, ecranul trebuie să-l actualizeze sau să-l ascundă, fără repornire.
 - `blocks`: **1 sau 2 blocuri**, în ordinea de la stânga la dreapta.
   - `title`: textul afișat deasupra blocului.
   - `width`: lățimea blocului în coloane dintr-o grilă de **6**. Blocurile unui ecran dau mereu împreună 6. Combinațiile posibile: `6`, `3+3`, `2+4`, `4+2`. Folosește direct `width`-ul fiecărui bloc, nu e nevoie să interpretezi `layout`.

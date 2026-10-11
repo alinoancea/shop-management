@@ -111,7 +111,12 @@ def _item(p: dict) -> dict:
 @app.route("/ecrane")
 def ecrane():
     """Screens configuration page."""
-    return render_template("ecrane.html", layouts=list(config.SCREEN_LAYOUTS.items()))
+    return render_template(
+        "ecrane.html",
+        layouts=list(config.SCREEN_LAYOUTS.items()),
+        height_range=config.SCREEN_PRODUCT_HEIGHT_RANGE,
+        text_max=config.SCREEN_TEXT_MAX,
+    )
 
 
 @app.route("/json_items")
@@ -153,6 +158,8 @@ def json_screen(screen_id):
         "configured": screen["configured"],
         "layout": screen["layout"],
         "refresh_seconds": get_screen_refresh(),
+        "product_height": screen["product_height"],
+        "text": screen["text"],
         "blocks": [
             {
                 "title": b["title"],
@@ -165,8 +172,25 @@ def json_screen(screen_id):
     })
 
 
+def _parse_pixels(value, limits: tuple, label: str):
+    """An optional whole number of pixels within limits; empty means 'use the device default'.
+    Returns (number or None, error message or None)."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None, None
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None, f"{label} trebuie să fie un număr întreg"
+    try:
+        number = int(value)
+    except ValueError:
+        return None, f"{label} trebuie să fie un număr întreg"
+    lo, hi = limits
+    if not lo <= number <= hi:
+        return None, f"{label} trebuie să fie între {lo} și {hi} px"
+    return number, None
+
+
 def _parse_screen(data: dict):
-    """Validate a screen payload. Returns ((name, layout, blocks), None) or (None, error)."""
+    """Validate a screen payload. Returns ((name, layout, blocks, product_height, text), None) or (None, error)."""
     layout = data.get("layout")
     widths = config.SCREEN_LAYOUTS.get(layout) if isinstance(layout, str) else None
     if widths is None:
@@ -181,7 +205,16 @@ def _parse_screen(data: dict):
         if not gama or not title:
             return None, "Fiecare bloc are nevoie de gamă și titlu"
         blocks.append({"gama": gama, "title": title})
-    return (str(data.get("name") or "").strip() or None, layout, blocks), None
+    height, error = _parse_pixels(data.get("product_height"), config.SCREEN_PRODUCT_HEIGHT_RANGE, "Înălțimea produsului")
+    if error:
+        return None, error
+    text = data.get("text")
+    if text is not None and not isinstance(text, str):
+        return None, "Textul trebuie să fie text"
+    text = (text or "").strip()
+    if len(text) > config.SCREEN_TEXT_MAX:
+        return None, f"Textul poate avea cel mult {config.SCREEN_TEXT_MAX} de caractere"
+    return (str(data.get("name") or "").strip() or None, layout, blocks, height, text or None), None
 
 
 @app.route("/api/screens")
@@ -192,7 +225,8 @@ def api_screens():
 
 @app.route("/api/screens/<int:screen_id>", methods=["PUT"])
 def api_save_screen(screen_id):
-    """API: Configure a screen: {"name", "layout", "blocks": [{"gama", "title"}]}."""
+    """API: Configure a screen: {"name", "layout", "blocks": [{"gama", "title"}], "product_height", "text"}.
+    product_height (pixels) and text (shown on the screen) are optional; leave them out or empty for none."""
     parsed, error = _parse_screen(request.get_json(silent=True) or {})
     if error:
         return jsonify({"error": error}), 400

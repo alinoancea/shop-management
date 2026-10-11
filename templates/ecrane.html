@@ -17,6 +17,11 @@
     .dot { display: inline-block; width: 8px; height: 8px; margin-right: .45rem; border-radius: 50%; background: var(--border-strong); }
     .dot.on { background: #16a34a; }
 
+    .info-table { --bs-table-bg: transparent; color: var(--text); }
+    .info-table th { width: 38%; padding: .7rem 1rem; font-weight: 500; color: var(--text-muted); vertical-align: top; }
+    .info-table td { padding: .7rem 1rem; border-color: var(--border); }
+    .info-table tr:last-child th, .info-table tr:last-child td { border-bottom: 0; }
+
     .block-row { display: flex; gap: .75rem; }
     .block-card { min-width: 0; padding: .85rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
     .block-card .width { margin-bottom: .5rem; color: var(--text-faint); font-size: .75rem; }
@@ -39,16 +44,13 @@
             <tr>
                 <th>ID</th>
                 <th>Nume</th>
-                <th>Aranjament</th>
-                <th>Blocuri</th>
-                <th>IP</th>
                 <th>Ultima conexiune</th>
                 <th class="text-end">Acțiuni</th>
             </tr>
         </thead>
         <tbody id="screenBody">
             <tr>
-                <td colspan="7" class="empty-state">
+                <td colspan="4" class="empty-state">
                     <i class="bi bi-display"></i>
                     <p class="mb-0">Se încarcă…</p>
                 </td>
@@ -74,6 +76,16 @@
                         <label class="form-label" for="screenLayout">Aranjament</label>
                         <select class="form-select" id="screenLayout"></select>
                     </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="screenHeight">Înălțimea unui produs (px)</label>
+                        <input type="number" class="form-control" id="screenHeight" min="{{ height_range[0] }}" max="{{ height_range[1] }}" placeholder="Implicită">
+                        <div class="form-text">Pentru ecrane late sau cu rezoluție mare. Gol = valoarea implicită a ecranului. Între {{ height_range[0] }} și {{ height_range[1] }} px.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="screenText">Text afișat pe ecran</label>
+                        <input class="form-control" id="screenText" maxlength="{{ text_max }}" placeholder="Opțional. Ex. Oferta săptămânii: -20% la mezeluri" autocomplete="off">
+                        <div class="form-text">Se trimite ecranului odată cu produsele; unde și cum apare decide programul de pe ecran. Gol = fără text. Cel mult {{ text_max }} de caractere.</div>
+                    </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="form-label mb-0">Blocuri</span>
@@ -90,6 +102,23 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="infoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="infoModalTitle">Informații ecran</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Închide"></button>
+            </div>
+            <div class="modal-body p-0">
+                <table class="table info-table mb-0"><tbody id="infoBody"></tbody></table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Închide</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -99,6 +128,7 @@
     const layoutLabel = ([, w]) => `${w.length === 1 ? 'Un bloc' : 'Două blocuri'} (${w.join(' + ')})`;
     const $ = id => document.getElementById(id);
     const modal = new bootstrap.Modal($('screenModal'));
+    const infoModal = new bootstrap.Modal($('infoModal'));
 
     let screens = [];
     let refreshSeconds = 60;
@@ -127,21 +157,41 @@
             <tr>
                 <td class="mono">${s.id}</td>
                 <td>${escapeHtml(s.name)}${s.configured ? '' : '<span class="tag">Nou</span>'}</td>
-                <td>${s.configured ? escapeHtml(layoutLabel(LAYOUTS.find(([n]) => n === s.layout))) : '<span class="muted">—</span>'}</td>
-                <td>${s.blocks.map(b => `${escapeHtml(b.title)} <span class="muted">${escapeHtml(gamaTitle(b.gama))}</span>`).join('<br>') || '<span class="muted">—</span>'}</td>
-                <td class="mono">${s.ip ? escapeHtml(s.ip) : '<span class="muted">—</span>'}</td>
                 <td class="text-nowrap" title="${escapeHtml(new Date(s.last_seen).toLocaleString('ro-RO'))}"><span class="dot ${isOnline(s) ? 'on' : ''}"></span>${ago(s.last_seen)}</td>
                 <td class="text-end text-nowrap">
+                    <button type="button" class="btn-icon" data-info="${s.id}" title="Informații" aria-label="Informații"><i class="bi bi-info-circle"></i></button>
                     <button type="button" class="btn-icon" data-edit="${s.id}" title="Configurează" aria-label="Configurează"><i class="bi bi-pencil"></i></button>
                     <button type="button" class="btn-icon danger" data-delete="${s.id}" title="Șterge" aria-label="Șterge"><i class="bi bi-trash"></i></button>
                 </td>
             </tr>`).join('') : `
             <tr>
-                <td colspan="7" class="empty-state">
+                <td colspan="4" class="empty-state">
                     <i class="bi bi-display"></i>
                     <p class="mb-0">Niciun ecran încă. Un ecran apare aici când se conectează pentru prima dată.</p>
                 </td>
             </tr>`;
+    }
+
+    // Everything the table no longer shows: IP, layout, product height and blocks
+    function openInfo(id) {
+        const s = screens.find(x => x.id === id);
+        const dash = '<span class="muted">—</span>';
+        const row = (label, value) => `<tr><th>${label}</th><td>${value}</td></tr>`;
+        const layout = s.configured ? escapeHtml(layoutLabel(LAYOUTS.find(([n]) => n === s.layout))) : dash;
+        const blocks = s.blocks.length
+            ? s.blocks.map(b => `${escapeHtml(b.title)} <span class="muted">· ${escapeHtml(gamaTitle(b.gama))}</span>`).join('<br>')
+            : dash;
+        $('infoModalTitle').textContent = `Informații ecran ${s.id}`;
+        $('infoBody').innerHTML =
+            row('ID', `<span class="mono">${s.id}</span>`)
+            + row('Nume', escapeHtml(s.name) + (s.configured ? '' : '<span class="tag">Nou</span>'))
+            + row('Adresă IP', s.ip ? `<span class="mono">${escapeHtml(s.ip)}</span>` : dash)
+            + row('Ultima conexiune', `<span class="dot ${isOnline(s) ? 'on' : ''}"></span>${ago(s.last_seen)} <span class="muted">(${escapeHtml(new Date(s.last_seen).toLocaleString('ro-RO'))})</span>`)
+            + row('Aranjament', layout)
+            + row('Înălțimea unui produs', s.product_height ? `${s.product_height} px` : '<span class="muted">implicită</span>')
+            + row('Text afișat pe ecran', s.text ? escapeHtml(s.text) : dash)
+            + row('Blocuri', blocks);
+        infoModal.show();
     }
 
     async function load() {
@@ -192,6 +242,8 @@
         };
         $('screenModalTitle').textContent = `Configurare ecran ${id}`;
         $('screenName').value = s.name;
+        $('screenHeight').value = s.product_height ?? '';
+        $('screenText').value = s.text ?? '';
         $('screenLayout').innerHTML = LAYOUTS.map(l => `<option value="${escapeHtml(l[0])}">${escapeHtml(layoutLabel(l))}</option>`).join('');
         $('screenLayout').value = editing.layout;
         renderBlocks();
@@ -230,7 +282,13 @@
             const res = await fetch(`/api/screens/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: $('screenName').value, layout, blocks }),
+                body: JSON.stringify({
+                    name: $('screenName').value,
+                    layout,
+                    blocks,
+                    product_height: $('screenHeight').value,
+                    text: $('screenText').value,
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
@@ -245,6 +303,7 @@
     $('screenBody').addEventListener('click', async e => {
         const btn = e.target.closest('button');
         if (!btn) return;
+        if (btn.dataset.info) return openInfo(Number(btn.dataset.info));
         if (btn.dataset.edit) return openEdit(Number(btn.dataset.edit));
         const s = screens.find(x => x.id === Number(btn.dataset.delete));
         if (!confirm(`Ștergi ecranul "${s.name}"? Dispozitivul nu va mai primi configurația.`)) return;

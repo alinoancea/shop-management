@@ -66,10 +66,13 @@ def init_db():
         # layout is NULL until the screen is configured
         conn.execute(
             "CREATE TABLE IF NOT EXISTS screens ("
-            "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, layout TEXT, last_seen TEXT, ip TEXT)"
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, layout TEXT, last_seen TEXT, ip TEXT, "
+            "product_height INTEGER, text TEXT)"
         )
-        if "ip" not in [r[1] for r in conn.execute("PRAGMA table_info(screens)")]:
-            conn.execute("ALTER TABLE screens ADD COLUMN ip TEXT")  # databases created before the IP was stored
+        screen_cols = [r[1] for r in conn.execute("PRAGMA table_info(screens)")]
+        for col, sql_type in (("ip", "TEXT"), ("product_height", "INTEGER"), ("text", "TEXT")):
+            if col not in screen_cols:  # databases created before the column existed
+                conn.execute(f"ALTER TABLE screens ADD COLUMN {col} {sql_type}")
         conn.execute(
             "CREATE TABLE IF NOT EXISTS screen_blocks ("
             "screen_id INTEGER NOT NULL, position INTEGER NOT NULL, "
@@ -318,6 +321,8 @@ def _screen_dict(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
         "configured": row["layout"] is not None,
         "last_seen": row["last_seen"],
         "ip": row["ip"],
+        "product_height": row["product_height"],  # px, None = the device's own default
+        "text": row["text"],                      # shown on the screen, None = no text
         "blocks": [{"gama": b["gama"], "title": b["title"]} for b in blocks],
     }
 
@@ -345,11 +350,13 @@ def touch_screen(screen_id: int, ip: Optional[str] = None) -> None:
         conn.execute("UPDATE screens SET last_seen = ?, ip = ? WHERE id = ?", (_now(), ip, screen_id))
 
 
-def save_screen(screen_id: int, name: Optional[str], layout: str, blocks: list[dict]) -> bool:
-    """Replace a screen's name, layout and blocks. Returns False if the screen doesn't exist."""
+def save_screen(screen_id: int, name: Optional[str], layout: str, blocks: list[dict],
+                product_height: Optional[int] = None, text: Optional[str] = None) -> bool:
+    """Replace a screen's name, layout, product height, text and blocks. Returns False if the screen doesn't exist."""
     with get_db() as conn:
         updated = conn.execute(
-            "UPDATE screens SET name = ?, layout = ? WHERE id = ?", (name, layout, screen_id)
+            "UPDATE screens SET name = ?, layout = ?, product_height = ?, text = ? WHERE id = ?",
+            (name, layout, product_height, text, screen_id),
         ).rowcount
         if not updated:
             return False

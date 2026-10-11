@@ -118,6 +118,8 @@ Device protocol:
   "configured": true,
   "layout": "2+4",
   "refresh_seconds": 60,
+  "product_height": 140,
+  "text": "Oferta săptămânii: -20% la mezeluri",
   "blocks": [
     {"title": "Mezeluri", "gama": "MEZELURI", "width": 2,
      "items": [{"barcode": "5900000000001", "name": "Salam", "um": "BUC", "price": 10.5, "quantity": 3.0}]},
@@ -128,6 +130,10 @@ Device protocol:
 
 An unconfigured screen gets `"configured": false`, `"layout": null` and `"blocks": []`.
 `refresh_seconds` is set in **Setări** (10-3600, default 60).
+`product_height` (whole pixels, 20-1000) is set per screen in **Configurare ecrane**, for wide or high-resolution
+screens; it applies to every product on that screen. `null` means "use the device's own default". The font size is
+not configured by the server. `text` is an optional free text (up to 200 characters) defined for the screen in
+**Configurare ecrane**; the device decides where and how to show it, and `null` means no text.
 
 Self-check for this API: `python test_screens.py`.
 

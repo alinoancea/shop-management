@@ -47,6 +47,8 @@ assert c.post("/api/screens/register").get_json() == {"id": 2}
 
 j = c.get("/json_screen/1").get_json()
 assert j["configured"] is False and j["layout"] is None and j["blocks"] == []
+assert j["product_height"] is None and "font_size" not in j  # nothing set: the device uses its own default
+assert j["text"] is None  # no text to show
 assert j["name"] == "Ecran 1" and j["refresh_seconds"] == 60
 assert c.get("/json_screen/99").status_code == 404
 
@@ -84,6 +86,34 @@ assert [(b["title"], b["width"]) for b in j["blocks"]] == [("Fructe", 4), ("Meze
 assert put({"name": "", "layout": "6", "blocks": [MEZ]}).status_code == 200
 j = c.get("/json_screen/1").get_json()
 assert [b["width"] for b in j["blocks"]] == [6] and j["name"] == "Ecran 1"
+
+# --- display setting: optional height of one product, in pixels (for wide / high-resolution screens) ---
+base = {"layout": "6", "blocks": [MEZ]}
+r = put({**base, "product_height": "140"})  # a number, or a numeric string as the form sends it
+assert r.status_code == 200 and r.get_json()["product_height"] == 140
+assert put({**base, "product_height": 150, "font_size": 32}).status_code == 200  # a font size is no longer a setting: ignored
+j = c.get("/json_screen/1").get_json()
+assert j["product_height"] == 150 and "font_size" not in j  # what the device receives
+assert [s["product_height"] for s in c.get("/api/screens").get_json()][0] == 150
+for bad in ({"product_height": 19}, {"product_height": 1001}, {"product_height": -5}, {"product_height": "abc"},
+            {"product_height": "12.5"}, {"product_height": 12.5}, {"product_height": True}, {"product_height": [100]}):
+    assert put({**base, **bad}).status_code == 400, bad
+assert c.get("/json_screen/1").get_json()["product_height"] == 150  # refused saves changed nothing
+assert put({**base, "product_height": ""}).status_code == 200  # empty = the device's default
+assert c.get("/json_screen/1").get_json()["product_height"] is None
+assert put({**base, "product_height": 140}).status_code == 200 and put(base).status_code == 200  # leaving it out resets it
+assert c.get("/json_screen/1").get_json()["product_height"] is None
+
+# --- a text for the screen to display: free text, optional, trimmed, at most SCREEN_TEXT_MAX characters ---
+assert put({**base, "text": "  Oferta saptamanii: -20% la mezeluri  "}).status_code == 200
+j = c.get("/json_screen/1").get_json()
+assert j["text"] == "Oferta saptamanii: -20% la mezeluri"  # what the device receives
+assert [s["text"] for s in c.get("/api/screens").get_json()][0] == "Oferta saptamanii: -20% la mezeluri"
+assert put({**base, "text": "x" * 201}).status_code == 400 and put({**base, "text": 5}).status_code == 400
+assert c.get("/json_screen/1").get_json()["text"] == "Oferta saptamanii: -20% la mezeluri"  # refused saves changed nothing
+assert put({**base, "text": "x" * 200}).status_code == 200 and c.get("/json_screen/1").get_json()["text"] == "x" * 200
+assert put({**base, "text": "   "}).status_code == 200 and c.get("/json_screen/1").get_json()["text"] is None  # blank = no text
+assert put(base).status_code == 200 and c.get("/json_screen/1").get_json()["text"] is None
 
 # --- listing, gamas, last_seen ---
 screens = c.get("/api/screens").get_json()
@@ -259,6 +289,7 @@ try:
     init_db()
     old = get_screen(1)
     assert old["name"] == "Vechi" and old["ip"] is None
+    assert old["product_height"] is None and old["text"] is None
 finally:
     config.DATABASE_PATH = current_db
 

@@ -52,5 +52,11 @@ APP_VERSION = "1.0.0"
 # Screen layouts: name -> block widths, left to right (columns out of 6)
 SCREEN_LAYOUTS = {"6": [6], "3+3": [3, 3], "2+4": [2, 4], "4+2": [4, 2]}
 
+# Allowed range (pixels) for the optional per-screen height of one product
+SCREEN_PRODUCT_HEIGHT_RANGE = (20, 1000)
+
+# Longest text (characters) that can be set for a screen to display
+SCREEN_TEXT_MAX = 200
+
 # Allowed range (seconds) for how often screen devices ask for their configuration
 SCREEN_REFRESH_RANGE = (10, 3600)
