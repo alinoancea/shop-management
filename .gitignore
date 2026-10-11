@@ -224,3 +224,6 @@ __marimo__/
 .venv/
 products.db
 settings.json
+nssm.exe
+products.db-journal
+python/

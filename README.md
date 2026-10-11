@@ -67,6 +67,21 @@ Screens then use `http://<machine-IP>:<port>`, e.g. `http://192.168.1.10:18766`.
 | POST | `/api/sync` | Trigger manual DBF sync |
 | GET | `/json_items` | Products for display devices. Optional `gama` (an app-defined identifier or a DBF gama value): returns `{"<gama>": [...]}`, otherwise a plain list |
 
+## Running as a Windows service
+
+`scripts\install-service.ps1` installs the app as a service (starts at boot, no window, restarts if it crashes,
+log in `logs\app.log` with rotation). It needs Python 3.11+ and [nssm.exe](https://nssm.cc/download)
+copied into the project folder. From an elevated PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-service.ps1 -DbfPath "C:\date\G1.DBF"
+```
+
+A service has no desktop, so the "Alege fișier DBF" dialog can't open: pass the file with `-DbfPath` (or edit
+`settings.json`). Other options: `-Port`, `-HostAddress`, `-ServiceName`, and `-DryRun` to only print the steps.
+The script does not touch the firewall: allow the port yourself if other PCs and the screens must connect.
+Run it again to update the service; `nssm.exe restart ShopManagement` after a `git pull`.
+
 ## Store name and version
 
 The left menu shows the store name under the app title (set in **Setări**, up to 60 characters, optional) and the
