@@ -41,7 +41,7 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
       "gama": "FRUCTE",
       "width": 2,
       "items": [
-        {"barcode": "5948792035938", "name": "ARO MASLINE INT LIGHT 400G", "um": "BUC", "price": 12.5, "quantity": 7.0}
+        {"barcode": "5948792035938", "name": "ARO MASLINE INT LIGHT 400G", "um": "BUC", "fel": "A", "price": 12.5, "quantity": 7.0}
       ]
     },
     {
@@ -49,7 +49,7 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
       "gama": "PAINE",
       "width": 4,
       "items": [
-        {"barcode": "5900000000001", "name": "Paine alba", "um": "BUC", "price": 8.5, "quantity": 6.0}
+        {"barcode": "5900000000001", "name": "Paine alba", "um": "BUC", "fel": null, "price": 8.5, "quantity": 6.0}
       ]
     }
   ]
@@ -66,7 +66,7 @@ Fiecare `GET /json_screen/{id}` este și un semnal că ecranul e activ: aplicaț
   - `width`: lățimea blocului în coloane dintr-o grilă de **6**. Blocurile unui ecran dau mereu împreună 6. Combinațiile posibile: `6`, `3+3`, `2+4`, `4+2`. Folosește direct `width`-ul fiecărui bloc, nu e nevoie să interpretezi `layout`.
   - `gama`: identificator intern. Nu îl afișa și nu depinde de el, afișezi `title`.
   - `items`: produsele blocului, deja sortate alfabetic după nume. Poate fi listă goală (gamă fără produse sau toate produsele fără stoc).
-- Un produs are: `barcode`, `name`, `um` (poate fi `""`), `price` (număr, ex. `12.5`; afișează cu 2 zecimale: `12.50`), `quantity` (stocul, număr). `price` și `quantity` pot fi, rar, `null`: tratează-le ca „necunoscut", fără să crape.
+- Un produs are: `barcode`, `name`, `um` (poate fi `""`), `fel` (valoarea din gestiune, ex. `"A"` sau `"G"`, sau `null` dacă produsul nu are), `price` (număr, ex. `12.5`; afișează cu 2 zecimale: `12.50`), `quantity` (stocul, număr). `price` și `quantity` pot fi, rar, `null`: tratează-le ca „necunoscut", fără să crape.
 
 ## Ce face deja serverul (nu reimplementa pe dispozitiv)
 

@@ -75,7 +75,7 @@ assert r.status_code == 200 and r.get_json()["name"] == "Raft"
 j = c.get("/json_screen/1").get_json()
 assert j["configured"] and j["layout"] == "2+4"
 assert [(b["title"], b["width"], len(b["items"])) for b in j["blocks"]] == [("Mezeluri", 2, 2), ("Fructe", 4, 1)]
-assert j["blocks"][1]["items"][0] == {"barcode": "333", "name": "Mere", "um": "BUC", "price": 1.0, "quantity": 5.0}
+assert j["blocks"][1]["items"][0] == {"barcode": "333", "name": "Mere", "um": "BUC", "fel": None, "price": 1.0, "quantity": 5.0}
 
 # swapping the order keeps the layout rule: 4+2 puts the first block on the wide side
 assert put({"layout": "4+2", "blocks": [FRU, MEZ]}).status_code == 200
@@ -164,7 +164,7 @@ assert c.get("/json_screen/2").get_json()["refresh_seconds"] == 30
 
 # --- /json_items keeps its old shapes ---
 assert c.get("/json_items?gama=FRUCTE").get_json() == {
-    "FRUCTE": [{"barcode": "333", "name": "Mere", "um": "BUC", "price": 1.0, "quantity": 5.0}]
+    "FRUCTE": [{"barcode": "333", "name": "Mere", "um": "BUC", "fel": None, "price": 1.0, "quantity": 5.0}]
 }
 assert len(c.get("/json_items").get_json()) == 8  # without a gama: the whole catalog, whatever the stock
 

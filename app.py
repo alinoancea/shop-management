@@ -103,6 +103,7 @@ def _item(p: dict) -> dict:
         "barcode": p["barcode"],
         "name": p["name"] or p["barcode"],
         "um": d.get("um", ""),
+        "fel": d.get("fel"),  # DBF value ("A", "G"...), None when empty
         "price": d.get("price"),
         "quantity": d.get("quantity"),
     }
@@ -124,9 +125,9 @@ def ecrane():
 def json_items():
     """API: Get products, optionally filtered by gama. Query param: gama (an app-defined
     identifier or a DBF gama value).
-    With gama: {"<gama>": [{"barcode", "name", "um", "price", "quantity"}, ...]}, without the
+    With gama: {"<gama>": [{"barcode", "name", "um", "fel", "price", "quantity"}, ...]}, without the
     products whose stock is exactly 0.
-    Without gama: every product, whatever its stock: [{"barcode", "name", "um", "price", "quantity"}, ...]
+    Without gama: every product, whatever its stock: [{"barcode", "name", "um", "fel", "price", "quantity"}, ...]
     """
     gama = request.args.get("gama", "").strip()
     limit = int(request.args.get("limit", -1))  # SQLite: LIMIT -1 = fara limita

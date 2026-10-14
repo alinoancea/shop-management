@@ -123,7 +123,7 @@ Device protocol:
   "text_size": 40,
   "blocks": [
     {"title": "Mezeluri", "gama": "MEZELURI", "width": 2,
-     "items": [{"barcode": "5900000000001", "name": "Salam", "um": "BUC", "price": 10.5, "quantity": 3.0}]},
+     "items": [{"barcode": "5900000000001", "name": "Salam", "um": "BUC", "fel": "A", "price": 10.5, "quantity": 3.0}]},
     {"title": "Fructe", "gama": "FRUCTE", "width": 4, "items": []}
   ]
 }
