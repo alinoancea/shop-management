@@ -34,7 +34,7 @@ from database import (
     save_screen,
     delete_screen,
 )
-from dbf_parser import start_scheduler, sync_all_dbf, _run_sync_with_status
+from dbf_parser import start_scheduler
 from sync_status import get_status as get_sync_status
 from settings_store import (
     load_settings, save_settings, get_dbf_files, set_dbf_files,
@@ -362,20 +362,6 @@ def api_product_detail(barcode):
 def api_sync_status():
     """API: Get sync status (in progress, last result)."""
     return jsonify(get_sync_status())
-
-
-@app.route("/api/sync", methods=["POST"])
-def api_sync():
-    """API: Trigger manual DBF sync."""
-    status = get_sync_status()
-    if status.get("in_progress"):
-        return jsonify({
-            "status": "in_progress",
-            "message": "Sync already in progress",
-            **status,
-        }), 409
-    _run_sync_with_status()
-    return jsonify({"status": "ok", **get_sync_status()})
 
 
 @app.route("/settings")

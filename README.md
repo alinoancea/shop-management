@@ -6,7 +6,7 @@ A web application that parses local DBF files, stores products in SQLite, and ex
 
 - **DBF parsing**: Reads one or more `*.dbf` files from a configurable folder
 - **SQLite storage**: Products are stored locally, unique by barcode
-- **Auto-sync**: Parses DBF files every 5 minutes
+- **Auto-sync**: Parses DBF files every 15 minutes
 - **Web UI**: Bootstrap-based, searchable product list
 - **REST API**: List, search, and get products by barcode
 
@@ -27,7 +27,7 @@ Set environment variables or edit `config.py`:
 | `BARCODE_COLUMN` | `BARCODE` | DBF column with product barcode |
 | `NAME_COLUMN` | *(auto)* | DBF column for product name |
 | `DATABASE_PATH` | `products.db` | SQLite database path |
-| `PARSE_INTERVAL_MINUTES` | `5` | Sync interval in minutes |
+| `PARSE_INTERVAL_MINUTES` | `15` | Sync interval in minutes |
 
 ### 3. Add DBF files
 
@@ -64,7 +64,6 @@ Screens then use `http://<machine-IP>:<port>`, e.g. `http://192.168.1.10:18766`.
 |--------|----------|-------------|
 | GET | `/api/products` | List products. Query params: `q` (search), `limit`, `offset` |
 | GET | `/api/products/<barcode>` | Get product by barcode |
-| POST | `/api/sync` | Trigger manual DBF sync |
 | GET | `/json_items` | Products for display devices. Optional `gama` (an app-defined identifier or a DBF gama value): returns `{"<gama>": [...]}`, otherwise a plain list |
 
 ## Running as a Windows service

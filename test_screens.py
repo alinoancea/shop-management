@@ -378,4 +378,5 @@ assert _agg_one(_row(0, 6.19, "2025-09-04"), _row(0, 5.69, "2026-09-01"), _row(4
 assert _agg_one(_row(6, 16.9, None), _row(0, 11.6, "2026-03-10"), _row(3, 17.5, "2026-01-29")) == (9, 17.5)  # newest of the stock rows
 assert _agg_one(_row(0, 3.0, "2026-01-01"), _row(0, 4.0, "2026-02-01")) == (0, 4.0)  # no stock anywhere: newest date
 
+assert c.post("/api/sync").status_code == 404  # the DBF sync only runs at startup and on its schedule
 print("test_screens: all checks passed")
