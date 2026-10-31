@@ -163,9 +163,15 @@ def upsert_product(barcode: str, name: str, data: dict) -> str:
         placeholders = ", ".join(["?"] * len(cols))
         sql = f"INSERT INTO products ({', '.join(cols)}) VALUES ({placeholders})"
         params = [barcode, name, now] + [vals.get(c) for c in _ATTR_COLS]
-        with get_db() as conn:
-            conn.execute(sql, params)
-        return "added"
+        try:
+            with get_db() as conn:
+                conn.execute(sql, params)
+            return "added"
+        except sqlite3.IntegrityError:
+            # another sync (second process, scheduler + manual) inserted it between our check and insert: update it
+            existing = get_product_by_barcode(barcode)
+            if existing is None:
+                raise
 
     existing_attrs = existing.get("data") or {}
     merged: dict = {**existing_attrs}

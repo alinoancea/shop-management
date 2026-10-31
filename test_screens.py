@@ -338,4 +338,44 @@ for path in ("/produse", "/game", "/ecrane", "/settings"):
 assert 'min="10" max="3600"' in c.get("/settings").get_data(as_text=True)
 assert c.get("/").status_code == 302
 
+# --- two syncs at once: the product appears between the lookup and the insert (used to raise IntegrityError) ---
+import database as _db
+_real = _db.get_product_by_barcode
+assert upsert_product("RACE", "Prima", {"quantity": 1}) == "added"
+_calls = []
+
+
+def _first_lookup_misses(b):  # the row another sync has just inserted is not visible to our first lookup
+    _calls.append(b)
+    return None if len(_calls) == 1 else _real(b)
+
+
+_db.get_product_by_barcode = _first_lookup_misses
+assert upsert_product("RACE", "A doua", {"quantity": 2}) == "updated"
+_db.get_product_by_barcode = _real
+assert _real("RACE")["name"] == "A doua" and _real("RACE")["data"]["quantity"] == 2
+
+# --- one barcode on several DBF rows: quantities add up, the price is the one of the most recent DATAI ---
+from dbf_parser import _aggregate_products_by_barcode as _agg
+
+
+def _row(qty, price, datai):
+    return {"barcode": "B", "name": "N", "data": {"quantity": qty, "price": price, "PRETUV": price / 1.21, "TVA": 21, "DATAI": datai}}
+
+
+def _agg_one(*rows):
+    (p,) = _agg(list(rows))
+    return p["data"]["quantity"], p["data"]["price"]
+
+
+assert _agg_one(_row(6, 44.99, "2026-10-30"), _row(0, 53.5, "2026-05-15")) == (6, 44.99)  # newest is first in the file
+assert _agg_one(_row(0, 53.5, "2026-05-15"), _row(6, 44.99, "2026-10-30")) == (6, 44.99)  # ...or last: same answer
+assert _agg_one(_row(45, 13.99, "2026-10-31"), _row(0, 19.9, "2026-06-19"), _row(0, 19.9, None)) == (45, 13.99)  # no date = oldest
+assert _agg_one(_row(1, 10.0, "2026-06-19"), _row(2, 12.0, "2026-06-19")) == (3, 12.0)  # same date: the later row
+assert _agg_one(_row(1, 10.0, None), _row(2, 12.0, None)) == (3, 12.0)  # no dates at all: the last row, as before
+# the stock decides first: a newer row with no stock must not set the price of the stock that sits on an older row
+assert _agg_one(_row(0, 6.19, "2025-09-04"), _row(0, 5.69, "2026-09-01"), _row(40, 8.0, None)) == (40, 8.0)
+assert _agg_one(_row(6, 16.9, None), _row(0, 11.6, "2026-03-10"), _row(3, 17.5, "2026-01-29")) == (9, 17.5)  # newest of the stock rows
+assert _agg_one(_row(0, 3.0, "2026-01-01"), _row(0, 4.0, "2026-02-01")) == (0, 4.0)  # no stock anywhere: newest date
+
 print("test_screens: all checks passed")

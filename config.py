@@ -47,7 +47,7 @@ HOST = os.getenv("APP_HOST", "0.0.0.0")
 PORT = int(os.getenv("APP_PORT", "18766"))
 
 # Shown next to the store name under the app title. Bump it when you release a change.
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 # Screen layouts: name -> block widths, left to right (columns out of 6)
 SCREEN_LAYOUTS = {"6": [6], "3+3": [3, 3], "2+4": [2, 4], "4+2": [4, 2]}

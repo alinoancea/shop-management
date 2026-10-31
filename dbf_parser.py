@@ -158,19 +158,34 @@ def parse_dbf_file_to_list(filepath: str) -> list[dict]:
     return products
 
 
+_PRICE_KEYS = ("price", "pretuv", "tva")
+
+
 def _aggregate_products_by_barcode(products: list[dict]) -> list[dict]:
-    """Aggregate products by barcode: sum quantity (cantitp), take latest name/price/datei."""
-    by_barcode = {}
-    for p in products:
+    """Aggregate products by barcode: sum quantity (cantitp), take the last row's name and other fields.
+    The price (with its pretuv/tva) comes from the rows that have stock, if any, else from all rows; among those
+    the one with the most recent DATAI wins (no date = oldest), and on a tie the later row."""
+    by_barcode, newest = {}, {}
+    for i, p in enumerate(products):
         barcode = p["barcode"]
+        in_stock = float(p["data"].get("quantity") or 0) > 0
+        stamp = (in_stock, _get_by_key(p["data"], "datai") or "", i)  # ISO dates sort as text
         if barcode not in by_barcode:
             by_barcode[barcode] = {"barcode": barcode, "name": p["name"], "data": dict(p["data"])}
+            newest[barcode] = (stamp, p)
         else:
             agg = by_barcode[barcode]
             agg["name"] = p["name"]  # latest name
             q = float(agg["data"].get("quantity") or 0) + float(p["data"].get("quantity") or 0)
             agg["data"] = {**agg["data"], **p["data"]}
             agg["data"]["quantity"] = round(q, 2)
+            if stamp > newest[barcode][0]:
+                newest[barcode] = (stamp, p)
+    for barcode, (_, p) in newest.items():
+        agg = by_barcode[barcode]["data"]
+        for k, v in p["data"].items():
+            if k.lower() in _PRICE_KEYS:
+                agg[k] = v
     return list(by_barcode.values())
 
 

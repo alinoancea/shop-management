@@ -2,15 +2,15 @@
     --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
     --font-mono: 'Cascadia Mono', 'Consolas', 'Menlo', monospace;
 
-    --bg: #f7f7f8;
+    --bg: #eceef2;
     --surface: #ffffff;
-    --surface-2: #f4f4f5;
-    --hover: #fafafa;
-    --border: #e4e4e7;
-    --border-strong: #d4d4d8;
+    --surface-2: #e8eaef;
+    --hover: #dbe4f7;
+    --border: #b8bcc6;
+    --border-strong: #8d929e;
     --text: #18181b;
-    --text-muted: #71717a;
-    --text-faint: #a1a1aa;
+    --text-muted: #4b5060;
+    --text-faint: #6b7080;
 
     --accent: #2563eb;
     --accent-hover: #1d4ed8;
@@ -144,14 +144,15 @@ body {
 .data-table thead th {
     padding: .7rem 1rem;
     background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
-    color: var(--text-muted);
+    border-bottom: 2px solid var(--border-strong);
+    color: var(--text);
     font-size: .8rem;
     font-weight: 600;
     white-space: nowrap;
 }
 .data-table tbody td { padding: .72rem 1rem; border-color: var(--border); vertical-align: middle; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:nth-child(even) td { background: var(--surface-2); }  /* zebra: rows stay apart on high-contrast screens */
 .data-table tbody tr:hover td { background: var(--hover); }
 .data-table .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
